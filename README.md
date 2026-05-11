@@ -10,11 +10,12 @@ and their sub-journals.
 ## Features
 
 - **6-phase automated workflow** — decompose, search, rank, fetch, organize, archive
-- **Publisher-aware routing** — different access strategies for Nature/ACS/ScienceDirect/Wiley/etc.
-- **Institutional access** — leverages CARSI (Chinese university SAML federation) or IP-based access
-- **Anti-bot countermeasures** — domain warmup, tab reuse, third-party cookie blocking to bypass captcha
-- **Full-text extraction** — OA → institutional IP → CDP browser, with Markdown output
-- **Zotero integration** — complete metadata via translation-server, custom collection support
+- **Adaptive fallback chain** — OA → Edge WebSocket → Chrome CDP → HTTP → metadata, no hardcoded routes
+- **Multi-browser architecture** — Edge (anti-bot publishers) + Chrome (CDP) + Chrome (Scholar, cookie-blocked)
+- **Institutional access** — CARSI SAML federation, IP-based, and EZproxy support
+- **Anti-bot countermeasures** — Edge raw DevTools protocol, Scholar cookie blocking, domain warmup
+- **Full-text extraction** — Markdown output with complete metadata
+- **Zotero integration** — translation-server for complete metadata, custom collection support
 
 ## Prerequisites
 
@@ -88,32 +89,42 @@ which collection to use).
 
 ```
 Topic → Google Scholar (port 9224) → candidates →
-  User selects → paper-fetcher:
-    ├─ OA? → Unpaywall/arXiv
-    ├─ Direct IP? → Nature/Springer/IOP/RSC
-    ├─ CDP browser? → ACS/Wiley/Cell/Science
-    └─ CDP+search? → ScienceDirect (special anti-captcha)
+  User selects → paper-fetcher adaptive fallback:
+    Layer 0: Open Access (Unpaywall/arXiv)
+    Layer 1: Edge WebSocket (port 9225)
+    Layer 2: Chrome CDP (port 9223)
+    Layer 3: HTTP direct / proxy
+    Fallback: metadata only
   → translation-server → Zotero (complete metadata)
 ```
 
-**Publisher routing**: Direct IP access works for publishers that authenticate
-by IP (Nature, Springer). CDP browser access works for publishers with aggressive
-anti-bot but institutional login (ACS, Wiley). ScienceDirect gets special
-treatment: search page warmup before article navigation.
-
-**Anti-SD-captcha trick** (learned from paper-harbor): navigate to
-`sciencedirect.com/search` first, then to the article — staying within
-the same domain avoids the bot-detection redirect chain.
+**Adaptive fallback**: No hardcoded publisher routes. Each layer tries, succeeds
+(> 1000 chars), or passes to the next. Edge WebSocket is prioritized over Chrome
+CDP because raw DevTools protocol has zero automation fingerprint — learned from
+`sciencedirect-live-session-fetcher`.
 
 **Anti-Google-rate-limit**: a dedicated Chrome instance on port 9224 with
 `--block-third-party-cookies` prevents Google's tracking-based throttling.
 
 ## Known Limitations
 
-- **ScienceDirect**: needs one-time manual warmup per session (30s browsing)
-- **Wiley**: articles with JS-lazy-loaded content may get partial extraction
+- **ScienceDirect / Wiley**: need one-time per-session login + manual warmup in Edge
 - **DeepSeek backend**: `WebSearch` tool unavailable — uses CDP browser instead
 - **`zot add --doi`**: produces empty items — always use translation-server + pyzotero
+
+## Acknowledgments
+
+This skill builds on ideas and code from the open-source community:
+
+- [paper-harbor-skill](https://github.com/Lucaswangzcx/paper-harbor-skill) — ScienceDirect CDP search-warmup pattern, Zotero bridge design, DrissionPage browser automation
+- [sciencedirect-live-session-fetcher](https://github.com/Given-Dream/sciencedirect-live-session-fetcher) — Edge + native WebSocket DevTools protocol (the key to bypassing Elsevier bot detection)
+- [zotero-cli-cc](https://github.com/Agents365-ai/zotero-cli-cc) — Zotero CLI and MCP server design, SQLite direct read
+- [asta-skill](https://github.com/Agents365-ai/asta-skill) — Semantic Scholar MCP skill pattern
+- [paper-fetcher](https://github.com/fermionoid/paper-fetcher) — multi-layer full-text fetching architecture (OA → proxy → metadata)
+- [scholar-sidekick-mcp](https://github.com/mlava/scholar-sidekick-mcp) — citation formatting and Zotero RDF export reference
+- [Google-Scholar-MCP-Server](https://github.com/JackKuo666/Google-Scholar-MCP-Server) — Google Scholar MCP server
+- [zotero-mcp](https://github.com/kujenga/zotero-mcp) — Zotero MCP protocol reference
+- [translation-server](https://github.com/zotero/translation-server) — Zotero translator engine
 
 ## License
 
