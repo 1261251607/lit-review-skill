@@ -1,6 +1,6 @@
 # lit-review — Claude Code 人工智能文献调研 Skill
 
-[![Version](https://img.shields.io/badge/version-2.1.0-blue)](https://github.com/1261251607/lit-review-skill)
+[![Version](https://img.shields.io/badge/version-2.1.1-blue)](https://github.com/1261251607/lit-review-skill)
 
 面向研究人员的端到端学术文献工作流：**模式选择 → 主题拆解 → Google Scholar
 检索 → 全文提取 → Zotero 组织管理 → 综合报告**。双模式：**quick-catch**

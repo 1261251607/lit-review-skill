@@ -181,21 +181,34 @@ zot.create_items([template])
 For papers where translation-server fails (e.g. Elsevier/Cell DOIs), construct items manually
 with pyzotero using metadata from paper-fetcher.
 
-Report final summary with full-text coverage stats: "M/N 篇入库，X% 全文覆盖".
+**Import ALL selected papers**, regardless of full-text availability. A paper with only metadata
+is still a valid Zotero item with title, authors, journal, year, and DOI.
+
+Report final summary: "M 篇入库（N 篇完整全文，K 篇元数据/摘要）".
 
 ---
 
 ### Phase 7 — Synthesis & Report
 
 **PREREQUISITE: All full-text fetch attempts must be complete. Do not start Phase 7 until
-Phase 4 is fully done and all available full-text MD files are saved.**
+Phase 4 is fully done.**
 
 Transform collected papers into actionable understanding. **This phase is mandatory for both modes.**
 
-Read ONLY full-text MD files under `~/.paper-fetcher/papers/{task-slug}/` — this is the task's
-verified paper set. Do not mix in papers from other tasks.
+**Use ALL available information from ALL selected papers.** Do not discard papers just because
+full text was unavailable. The information hierarchy is:
 
-If a paper has only metadata, flag it and exclude from deep analysis.
+| Tier | Source | Use for |
+|------|--------|---------|
+| Tier 1 | Complete full-text MD | Deep analysis, direct quotes, detailed methods, mechanism interpretation |
+| Tier 2 | Abstract + highlights + figures | Core findings, key data, main conclusions, statistical trends |
+| Tier 3 | Metadata only (title + journal + year) | Existence proof, publication venue context, timeline analysis |
+
+- **Full-text MDs** under `~/.paper-fetcher/papers/{task-slug}/` are the primary source.
+- **Abstracts and metadata** from Phase 3 Scholar results supplement gaps and broaden coverage.
+- In the report, cite each paper with its tier: `[n]` = full text, `[n]*` = abstract, `[n]†` = metadata.
+- A deep-search report with 42 candidates should engage with all 42 — not just the ~20 with full text.
+- Do not mix in papers from other tasks.
 
 #### quick-catch report (~800-1200 字中文)
 
@@ -222,7 +235,9 @@ Read top 2-3 per dimension + global top 5 (~15-20 full-text MDs). Structure in f
 
 **Citation style**: 正文引用用 [n]（对应 Phase 3 表格编号），方便对照回查。
 
-**Key constraint**: 基于全文 MD 写作，不是抽象。每个判断都要有文献支撑。
+**Citation style**: `[n]` = full text, `[n]*` = abstract only, `[n]†` = metadata. Distinguish tier in every reference.
+
+**Key constraint**: 每个判断都要有文献支撑。基于全文优于摘要，摘要优于元数据。不要因为某篇只有摘要就放弃引用。
 
 #### Store report in Zotero
 
@@ -324,4 +339,5 @@ has no automation markers — learned from `sciencedirect-live-session-fetcher`.
 - **Always consult** before Zotero writes — never auto-add without collection confirmation.
 - **Don't get stuck**: if full text fails after exhausting all layers, save metadata and flag it.
 - **Translation-server must be running** before Phase 6.
-- **Don't mix tasks**: Keep papers, full texts, and reports separated by task-slug.
+- **Import all papers, not just full-text ones**: Phase 6 imports every selected paper. Metadata-only items are valid Zotero entries.
+- **Use all information tiers in synthesis**: Full text > abstract > metadata. Don't discard papers without full text — their abstracts still carry findings.

@@ -1,6 +1,6 @@
 # lit-review — Claude Code Skill for AI-Powered Literature Review
 
-[![Version](https://img.shields.io/badge/version-2.1.0-blue)](https://github.com/1261251607/lit-review-skill)
+[![Version](https://img.shields.io/badge/version-2.1.1-blue)](https://github.com/1261251607/lit-review-skill)
 [![中文](https://img.shields.io/badge/README-中文-red)](README.zh-CN.md)
 
 End-to-end academic literature workflow for Claude Code: **mode selection → topic
