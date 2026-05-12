@@ -77,6 +77,20 @@ Merge all results, deduplicate by DOI/title. Rank by:
 3. Relevance
 4. Recency
 
+**Foundational paper detection** — before presenting the final list, scan for older papers
+that deserve retention despite their age:
+
+| Age | Citation threshold | Action |
+|-----|-------------------|--------|
+| ≤ 5 years | any | Normal ranking |
+| 5-8 years | top 20% cited in candidate set | Mark ⭐ foundational, auto-keep |
+| 5-8 years | below top 20% | Demote to bottom, ask user |
+| > 8 years | ≥ 500 citations OR Nature/Science/Cell | Mark ⭐ foundational, auto-keep |
+| > 8 years | below threshold | Move to "补充参考" appendix |
+
+When marking a paper as foundational, add a short justification:
+"⭐ 奠基性文献 — 2016 年发表于 Science，被引 823 次，该领域实验方法论的基石。"
+
 Present a structured table:
 ```
 ## 候选文献 (N 篇)
