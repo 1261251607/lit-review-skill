@@ -1,6 +1,6 @@
 # lit-review — Claude Code Skill for AI-Powered Literature Review
 
-[![Version](https://img.shields.io/badge/version-2.0.0-blue)](https://github.com/1261251607/lit-review-skill)
+[![Version](https://img.shields.io/badge/version-2.1.0-blue)](https://github.com/1261251607/lit-review-skill)
 [![中文](https://img.shields.io/badge/README-中文-red)](README.zh-CN.md)
 
 End-to-end academic literature workflow for Claude Code: **mode selection → topic
@@ -12,9 +12,13 @@ broad coverage across SCI/Nature/Science/Cell and their sub-journals.
 
 ## Features
 
-- **7-phase automated workflow** — mode select, decompose, search, rank, fetch, organize, synthesize
+- **8-phase automated workflow** — mode select, decompose, search, rank, DOI verify, fetch, organize, synthesize
 - **Dual-mode** — quick-catch for rapid overview (~10-15 papers) or deep-search for comprehensive review (~50-80 papers)
 - **AI synthesis report** — cross-dimension analysis, methodology comparison, and research outlook stored as Zotero note
+- **DOI verification (Phase 3.5)** — no guessed DOIs; every paper verified before Zotero import
+- **Edge-first routing** — Edge WebSocket DevTools (9225) for all CARSI publishers; Chrome CDP (9223) fallback
+- **Task file isolation** — full-text MDs organized by task slug under `~/.paper-fetcher/papers/{task}/`
+- **Minimized browser automation** — browsers start minimized, only brought to front for user login
 - **Adaptive fallback chain** — OA → Edge WebSocket → Chrome CDP → HTTP → metadata, no hardcoded routes
 - **Multi-browser architecture** — Edge (anti-bot publishers) + Chrome (CDP) + Chrome (Scholar, cookie-blocked)
 - **Institutional access** — CARSI SAML federation, IP-based, and EZproxy support

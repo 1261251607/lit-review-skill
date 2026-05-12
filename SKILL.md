@@ -3,8 +3,8 @@
 ## What this skill does
 
 End-to-end academic literature workflow: mode selection → topic decomposition → Google Scholar search →
-full-text extraction (OA / IP-direct / Edge / Chrome CDP) → Zotero organization with
-complete metadata → synthesis report. Two modes: **quick-catch** (rapid overview, ~10-15 papers) and
+full-text extraction (OA / Edge DevTools → Chrome CDP → HTTP direct) → DOI verification →
+Zotero organization → synthesis report. Two modes: **quick-catch** (rapid overview, ~10-15 papers) and
 **deep-search** (comprehensive review, ~50-80 papers).
 
 ## When to trigger
@@ -24,6 +24,8 @@ to find papers on a specific topic.
 >
 > - **quick-catch**: 10-15 篇，读 top 3-5 全文，快速建立领域认知框架
 > - **deep-search**: 50-80 篇，读每维度 top 2-3 + 全局 top 5（~15-20 篇全文），产出分维度深度解析 + 跨维度逻辑连接 + 前瞻
+
+Set task-slug from the topic (e.g. `gel-mof-awh`) for file organization.
 
 Derive mode-specific parameters:
 
@@ -84,31 +86,62 @@ For **quick-catch**: remind the user we'll only fetch full text for the most rel
 For **deep-search**: ask which papers to prioritize, or approve auto-selection of
 top 2-3 per dimension + top 5 globally.
 
+### Phase 3.5 — DOI Verification
+
+**BEFORE any Zotero import, verify every paper's DOI. Never guess a DOI.**
+
+For each selected paper, use `paper-fetcher get_paper_metadata` to confirm the correct DOI.
+If the DOI is uncertain, search Crossref or Semantic Scholar with the paper title.
+
+Present a verified list:
+```
+DOI 校验:
+  #1 ✓ 10.1038/s41578-024-00721-x
+  #2 ✓ 10.1038/s44221-023-00099-0
+  #3 ✗ DOI not found — needs manual lookup
+  ...
+```
+
+Only papers with verified DOIs proceed to Phases 5-6. Flag unverified ones for manual resolution.
+
+---
+
 ### Phase 4 — Full Text Fetch
 
 Full-text scope by mode:
 - **quick-catch**: top 3-5 most relevant (user selects or auto-rank)
 - **deep-search**: top 2-3 per dimension + global top 5 (~15-20 total)
 
+**CRITICAL: This phase must complete for ALL selected papers before proceeding to Phase 7.**
+Do not skip paywalled papers. Attempt every paper — if a browser is needed, start it and route accordingly.
+If a publisher requires CARSI login, pause and ask the user (see Service Architecture below).
+Only when every paper has been attempted (success or confirmed failure) may you move on.
+
 paper-fetcher uses an adaptive fallback chain — tries each layer, stops when it gets
 > 1000 chars of full text:
 
 ```
-Layer 0: Open Access (Unpaywall / arXiv)         ← free, no auth
-Layer 1: Edge + WebSocket DevTools (port 9225)   ← SD, Wiley, any anti-bot
-Layer 2: Chrome CDP (port 9223)                  ← ACS, Cell, Science, etc.
-Layer 3: HTTP direct / institutional proxy       ← Nature, Springer, IOP, RSC
-Fallback: metadata only                          ← always available
+Layer 0: Open Access (Unpaywall / arXiv)         ← free, no auth, always first
+Layer 1: Edge WebSocket DevTools (port 9225)      ← all paywalled publishers
+Layer 2: Chrome CDP (port 9223)                   ← fallback if Edge fails
+Layer 3: HTTP direct / institutional proxy        ← Nature, Springer, IOP, RSC
+Fallback: metadata only                           ← always available
 ```
 
-Save full text as Markdown: `~/.paper-fetcher/papers/{slug}.md`
+**Publisher routing**: All CARSI-authenticated publishers (ACS, Wiley, Cell, Science, Nature, SD,
+Springer, RSC) should be accessed via **Edge port 9225**. Chrome CDP (9223) is a fallback only.
+Scholar Chrome (9224) is used exclusively for Google Scholar searches, never for publisher access.
 
-Report:
+Save full text as Markdown under a task-specific subdirectory:
+`~/.paper-fetcher/papers/{task-slug}/—.md`
+
+Report progress during fetching:
 ```
-获取全文:
+获取全文 [deep-search, 目标 ~18 篇]:
   #1 ✓ "Title" — 97,185 chars (open_access)
   #3 ✓ "Title" — 338,813 chars (sjtu_edge)
-  #5 ✗ "Title" — metadata only
+  #5 ✗ "Title" — metadata only (paywall, CARSI login needed)
+  ... (N remaining)
 ```
 
 ### Phase 5 — Zotero Collection
@@ -121,7 +154,14 @@ Report:
 
 ### Phase 6 — Add to Zotero
 
-Do NOT use `zot add --doi` (produces empty items). Use the two-step pipeline:
+Use only verified DOIs from Phase 3.5. Never guess.
+
+**Preferred method** — `zot add` via MCP with URL (no empty items):
+```
+mcp__zotero__add url="https://doi.org/10.xxx/xxx"
+```
+
+**Fallback method** — translation-server + pyzotero for batch imports:
 
 **Step A — Resolve metadata via translation-server (port 1969):**
 ```bash
@@ -138,19 +178,24 @@ template['collections'] = [COLLECTION_KEY]
 zot.create_items([template])
 ```
 
-**Step C — Attach full-text MD as note:**
-```bash
-zot note KEY --add "Full text: ~/.paper-fetcher/papers/{slug}.md"
-```
+For papers where translation-server fails (e.g. Elsevier/Cell DOIs), construct items manually
+with pyzotero using metadata from paper-fetcher.
 
-Report final summary with full-text coverage stats.
+Report final summary with full-text coverage stats: "M/N 篇入库，X% 全文覆盖".
+
+---
 
 ### Phase 7 — Synthesis & Report
 
+**PREREQUISITE: All full-text fetch attempts must be complete. Do not start Phase 7 until
+Phase 4 is fully done and all available full-text MD files are saved.**
+
 Transform collected papers into actionable understanding. **This phase is mandatory for both modes.**
 
-Read full-text MD files in `~/.paper-fetcher/papers/` — not just abstracts. If a paper has only
-metadata, flag it and exclude from deep analysis.
+Read ONLY full-text MD files under `~/.paper-fetcher/papers/{task-slug}/` — this is the task's
+verified paper set. Do not mix in papers from other tasks.
+
+If a paper has only metadata, flag it and exclude from deep analysis.
 
 #### quick-catch report (~800-1200 字中文)
 
@@ -181,7 +226,9 @@ Read top 2-3 per dimension + global top 5 (~15-20 full-text MDs). Structure in f
 
 #### Store report in Zotero
 
-After generating the report, create a standalone note item in the target Zotero collection:
+After generating the report, create a standalone note item in the target Zotero collection
+containing the **complete, unabridged** synthesis report (all four layers for deep-search,
+all sections for quick-catch). Do NOT store a simplified or abbreviated version.
 
 ```python
 from pyzotero import zotero
@@ -189,7 +236,7 @@ zot = zotero.Zotero('14349762', 'user', 'KEY')
 
 note = {
     'itemType': 'note',
-    'note': f'<h2>Literature Review: {主题}</h2>\n\n' + report_html,
+    'note': f'<h2>Literature Review: {主题}</h2>\n\n{report_html}',
     'collections': [COLLECTION_KEY],
 }
 zot.create_items([note])
@@ -201,16 +248,32 @@ The note appears alongside the papers in the same collection in Zotero.
 
 ## Service Architecture
 
-Start these before a session:
+### Before any session
+
+Start all four services:
 
 | Service | Port | Command | Purpose |
 |---------|------|---------|---------|
-| Main Chrome | 9223 | `start_chrome.ps1` | CDP publishers (ACS, Cell, Science) |
-| Scholar Chrome | 9224 | `start_chrome.ps1 -Scholar` | Google Scholar (cookie-blocked) |
-| Edge | 9225 | `start_edge.ps1` | SD + Wiley (WebSocket DevTools) |
+| Edge (primary publisher access) | 9225 | `start_edge.ps1` | All CARSI-authenticated publishers |
+| Chrome CDP (publisher fallback) | 9223 | `start_chrome.ps1` | Fallback for publishers Edge can't handle |
+| Scholar Chrome | 9224 | `start_chrome.ps1 -Scholar` | Google Scholar only (cookie-blocked) |
 | Translation | 1969 | `cd translation-server && npm start` | Zotero metadata resolution |
 
-One-time per session in each browser: CARSI login to the relevant publishers.
+### CARSI login flow
+
+1. Start all browser services. Browsers should open **minimized** — do not bring to front
+   during automated fetching.
+2. **Immediately remind the user:**
+   > "请在 **Edge (9225)** 中打开以下出版社网站，走 SJTU CARSI 登录：
+   > `sciencedirect.com` `onlinelibrary.wiley.com` `nature.com`
+   > `pubs.acs.org` `cell.com` `link.springer.com` `pubs.rsc.org`
+   >
+   > 完成后告诉我。"
+3. **STOP. Wait for the user to confirm login is done.** Do not search, fetch, or scrape
+   until the user signals completion.
+4. Only after user confirmation, proceed with paywalled paper fetching.
+5. All automated fetching should use the browser in minimized state. Only bring a browser
+   window to front when the user needs to interact with it (login, captcha).
 
 ---
 
@@ -221,8 +284,8 @@ stopping when it gets usable full text (> 1000 chars):
 
 ```
 Layer 0 — OA: Unpaywall / arXiv (free, no auth, always first)
-Layer 1 — Edge WebSocket: port 9225, raw DevTools protocol (zero automation fingerprint, handles anti-bot publishers)
-Layer 2 — Chrome CDP: port 9223, DrissionPage (for publishers that don't detect automation)
+Layer 1 — Edge WebSocket: port 9225, raw DevTools protocol (zero automation fingerprint, all paywalled publishers)
+Layer 2 — Chrome CDP: port 9223, DrissionPage (fallback for publishers Edge fails on)
 Layer 3 — HTTP direct: institutional IP / proxy (for IP-authenticated publishers)
 Fallback — metadata only (always available via Semantic Scholar / Crossref)
 ```
@@ -232,20 +295,33 @@ has no automation markers — learned from `sciencedirect-live-session-fetcher`.
 
 ---
 
+## File Organization
+
+- Full-text MDs: `~/.paper-fetcher/papers/{task-slug}/` (one subdirectory per task)
+- Batch import scripts: `~/cc-massages/batch_import_{task-slug}.py` (clean up after use)
+
+---
+
 ## Zotero Config
 
 - Data dir: `C:/Users/Scholar/Zotero`
 - Library ID: 14349762
 - Read: SQLite direct (offline, millisecond)
-- Write: Web API with pyzotero
+- Write: Web API with pyzotero or MCP `zot add`
 
 ## Important Rules
 
 - **Mode first**: Always ask quick-catch vs deep-search before Phase 1. Never assume.
+- **Phase gate: Phase 4 must complete before Phase 7**: Do not start synthesis until all full-text attempts are done.
+- **Never guess a DOI**: Always verify via Phase 3.5. A wrong DOI breaks the Zotero pipeline.
+- **Never skip paywalled papers**: Attempt every paper. Start browsers, pause for login, try every layer.
+- **Login comes before fetching, and wait for the user**: Start browsers → remind → STOP → wait for "done" → then fetch.
+- **Browsers run minimized** during automated fetching. Only bring to front for user interaction.
+- **All publisher CARSI login via Edge (9225)**. Chrome CDP (9223) is fallback only. Scholar Chrome (9224) is for Google Scholar only.
 - **Synthesis is not optional**: Phase 7 is mandatory for both modes. Don't skip it.
-- **Read full text, not abstracts**: Phase 7 analysis must be based on full-text MD files.
-- **Scholar rate-limiting**: Always use port 9224 (blocks third-party cookies).
-- **SD/Wiley**: Always use Edge port 9225 (native DevTools, no DrissionPage).
+- **Read full text, not abstracts**: Phase 7 analysis must be based on full-text MD files in the task subdirectory.
+- **Complete report in Zotero**: Store the full unabridged synthesis report, not a summary.
 - **Always consult** before Zotero writes — never auto-add without collection confirmation.
-- **Don't get stuck**: if full text fails, save metadata and flag it.
+- **Don't get stuck**: if full text fails after exhausting all layers, save metadata and flag it.
 - **Translation-server must be running** before Phase 6.
+- **Don't mix tasks**: Keep papers, full texts, and reports separated by task-slug.

@@ -1,6 +1,6 @@
 # lit-review — Claude Code 人工智能文献调研 Skill
 
-[![Version](https://img.shields.io/badge/version-2.0.0-blue)](https://github.com/1261251607/lit-review-skill)
+[![Version](https://img.shields.io/badge/version-2.1.0-blue)](https://github.com/1261251607/lit-review-skill)
 
 面向研究人员的端到端学术文献工作流：**模式选择 → 主题拆解 → Google Scholar
 检索 → 全文提取 → Zotero 组织管理 → 综合报告**。双模式：**quick-catch**
@@ -9,9 +9,13 @@
 
 ## 特性
 
-- **7 阶段自动化流程** — 选模、拆解、检索、排序、获取、整理、综合
+- **8 阶段自动化流程** — 选模、拆解、检索、排序、DOI校验、获取、整理、综合
 - **双模式** — quick-catch 快速入门（~10-15 篇）或 deep-search 深度综述（~50-80 篇）
-- **AI 综合报告** — 跨维度分析、方法论比较、研究前瞻，以 Zotero note 存入分类
+- **AI 综合报告** — 跨维度分析、方法论比较、研究前瞻，完整报告以 Zotero note 存入分类
+- **DOI 校验 (Phase 3.5)** — 绝不猜 DOI，每篇文献入 Zotero 前强制校验
+- **Edge 优先路由** — Edge WebSocket DevTools (9225) 统一处理所有 CARSI 出版社；Chrome CDP (9223) 兜底
+- **任务文件隔离** — 全文 MD 按任务 slug 归类至 `~/.paper-fetcher/papers/{task}/`
+- **浏览器最小化** — 自动抓取时浏览器保持最小化，仅用户登录时弹出
 - **自适应 fallback 链** — OA → Edge WebSocket → Chrome CDP → HTTP → 元数据，无硬编码路由
 - **多浏览器架构** — Edge（反爬出版社）+ Chrome（CDP）+ Chrome（Scholar，Cookie 隔离）
 - **机构访问** — CARSI SAML 联邦认证、IP 直连、EZproxy
