@@ -1,6 +1,6 @@
 # lit-review — Claude Code 人工智能文献调研 Skill
 
-[![Version](https://img.shields.io/badge/version-2.1.1-blue)](https://github.com/1261251607/lit-review-skill)
+[![Version](https://img.shields.io/badge/version-2.1.4-blue)](https://github.com/1261251607/lit-review-skill)
 
 面向研究人员的端到端学术文献工作流：**模式选择 → 主题拆解 → Google Scholar
 检索 → 全文提取 → Zotero 组织管理 → 综合报告**。双模式：**quick-catch**
@@ -15,7 +15,9 @@
 - **DOI 校验 (Phase 3.5)** — 绝不猜 DOI，每篇文献入 Zotero 前强制校验
 - **Edge 优先路由** — Edge WebSocket DevTools (9225) 统一处理所有 CARSI 出版社；Chrome CDP (9223) 兜底
 - **任务文件隔离** — 全文 MD 按任务 slug 归类至 `~/.paper-fetcher/papers/{task}/`
-- **浏览器最小化** — 自动抓取时浏览器保持最小化，仅用户登录时弹出
+- **奠基文献自动识别** — 年份/引用量权衡，5-8年高被引文章自动标记 ⭐
+- **中科院分区查询** — 2025 中科院分区表（21k+ 期刊），`cas_lookup.py` 一键查
+- **中文文献支持** — Scholar 搜知网/万方 + jasminum Zotero 插件管元数据
 - **自适应 fallback 链** — OA → Edge WebSocket → Chrome CDP → HTTP → 元数据，无硬编码路由
 - **多浏览器架构** — Edge（反爬出版社）+ Chrome（CDP）+ Chrome（Scholar，Cookie 隔离）
 - **机构访问** — CARSI SAML 联邦认证、IP 直连、EZproxy
@@ -61,6 +63,21 @@ claude mcp add -s user google-scholar -- python google_scholar_server.py
 claude mcp add -s user paper-fetcher -- paper-fetcher-mcp
 claude mcp add -s user -e PYTHONIOENCODING=utf-8 zotero -- zot mcp serve
 ```
+
+## 可选：中科院期刊分区
+
+让候选文献自动标注中科院分区（1区/2区/3区/4区、Top期刊）。
+
+```bash
+# 一次性下载：2025年中科院分区表（~4MB，21,773本期刊）
+# 数据来源：hitfyd/ShowJCR（社区维护，持续更新）
+mkdir -p ~/.paper-fetcher/cas_partition
+curl -L -o ~/.paper-fetcher/cas_partition/FQBJCR2025-UTF8.csv \
+  "https://raw.githubusercontent.com/hitfyd/ShowJCR/refs/heads/master/中科院分区表及JCR原始数据文件/FQBJCR2025-UTF8.csv"
+```
+
+内置的 `cas_lookup.py` 自动读取此路径。没有 CSV 文件时静默跳过——不影响其他功能。
+每年从 [hitfyd/ShowJCR](https://github.com/hitfyd/ShowJCR) 获取最新版本即可。
 
 ## 启动服务
 

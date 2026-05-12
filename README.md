@@ -1,6 +1,6 @@
 # lit-review — Claude Code Skill for AI-Powered Literature Review
 
-[![Version](https://img.shields.io/badge/version-2.1.1-blue)](https://github.com/1261251607/lit-review-skill)
+[![Version](https://img.shields.io/badge/version-2.1.4-blue)](https://github.com/1261251607/lit-review-skill)
 [![中文](https://img.shields.io/badge/README-中文-red)](README.zh-CN.md)
 
 End-to-end academic literature workflow for Claude Code: **mode selection → topic
@@ -18,7 +18,9 @@ broad coverage across SCI/Nature/Science/Cell and their sub-journals.
 - **DOI verification (Phase 3.5)** — no guessed DOIs; every paper verified before Zotero import
 - **Edge-first routing** — Edge WebSocket DevTools (9225) for all CARSI publishers; Chrome CDP (9223) fallback
 - **Task file isolation** — full-text MDs organized by task slug under `~/.paper-fetcher/papers/{task}/`
-- **Minimized browser automation** — browsers start minimized, only brought to front for user login
+- **Foundation paper auto-detection** — age/citation tradeoff; 5-8yr high-citation papers auto-marked ⭐
+- **CAS journal ranking** — 2025 CAS partition table (21k+ journals), one-click lookup via `cas_lookup.py`
+- **Chinese literature** — CNKI/Wanfang via Scholar + jasminum Zotero plugin for metadata
 - **Adaptive fallback chain** — OA → Edge WebSocket → Chrome CDP → HTTP → metadata, no hardcoded routes
 - **Multi-browser architecture** — Edge (anti-bot publishers) + Chrome (CDP) + Chrome (Scholar, cookie-blocked)
 - **Institutional access** — CARSI SAML federation, IP-based, and EZproxy support
@@ -64,6 +66,23 @@ claude mcp add -s user google-scholar -- python google_scholar_server.py
 claude mcp add -s user paper-fetcher -- paper-fetcher-mcp
 claude mcp add -s user -e PYTHONIOENCODING=utf-8 zotero -- zot mcp serve
 ```
+
+## Optional: CAS Journal Ranking
+
+中科院期刊分区表 (CAS journal partition) — annotates every candidate paper with its
+official Chinese Academy of Sciences ranking (1区/2区/3区/4区, Top期刊).
+
+```bash
+# One-time download: CAS 2025 partition table (~4MB, 21,773 journals)
+# Data source: hitfyd/ShowJCR (MIT-licensed, community-maintained)
+mkdir -p ~/.paper-fetcher/cas_partition
+curl -L -o ~/.paper-fetcher/cas_partition/FQBJCR2025-UTF8.csv \
+  "https://raw.githubusercontent.com/hitfyd/ShowJCR/refs/heads/master/中科院分区表及JCR原始数据文件/FQBJCR2025-UTF8.csv"
+```
+
+The bundled `cas_lookup.py` reads from this path. If the CSV is not present, CAS lookups
+are silently skipped — everything else works fine. Update the CSV annually from
+[hitfyd/ShowJCR](https://github.com/hitfyd/ShowJCR).
 
 ## Startup
 

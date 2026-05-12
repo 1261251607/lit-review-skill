@@ -91,6 +91,13 @@ that deserve retention despite their age:
 When marking a paper as foundational, add a short justification:
 "⭐ 奠基性文献 — 2016 年发表于 Science，被引 823 次，该领域实验方法论的基石。"
 
+**CAS journal ranking** — for each paper, look up the journal's CAS partition using the local table:
+```bash
+python3 ~/cc-massages/cas_lookup.py "<journal_name>"
+```
+Data source: `~/cc-massages/cas_partition/FQBJCR2025-UTF8.csv` (21,773 journals, from `hitfyd/ShowJCR`).
+Add a CAS column to the candidate table: e.g. "工程技术 1区 (Top)". If not found, leave blank.
+
 Present a structured table:
 ```
 ## 候选文献 (N 篇)
@@ -335,6 +342,26 @@ has no automation markers — learned from `sciencedirect-live-session-fetcher`.
 
 - Full-text MDs: `~/.paper-fetcher/papers/{task-slug}/` (one subdirectory per task)
 - Batch import scripts: `~/cc-massages/batch_import_{task-slug}.py` (clean up after use)
+- CAS partition table: `~/.paper-fetcher/cas_partition/FQBJCR2025-UTF8.csv`
+- CAS lookup script: `cas_lookup.py` (bundled with this skill)
+
+### CAS Partition Setup (for new users)
+
+The CAS journal ranking system is used in Phase 3 to annotate candidate papers.
+One-time setup:
+
+```bash
+# 1. Download the latest CAS partition table (source: hitfyd/ShowJCR)
+mkdir -p ~/.paper-fetcher/cas_partition
+URL="https://raw.githubusercontent.com/hitfyd/ShowJCR/refs/heads/master/"
+URL="${URL}中科院分区表及JCR原始数据文件/FQBJCR2025-UTF8.csv"
+curl -L -o ~/.paper-fetcher/cas_partition/FQBJCR2025-UTF8.csv "$URL"
+
+# 2. The bundled cas_lookup.py reads from this path by default.
+#    Override with env var: CAS_PARTITION_CSV=/custom/path.csv
+```
+
+If the CSV is not present, CAS lookups are silently skipped — the skill works fine without it.
 
 ---
 
