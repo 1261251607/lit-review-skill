@@ -1,16 +1,20 @@
 # lit-review — Claude Code Skill for AI-Powered Literature Review
 
-[![Version](https://img.shields.io/badge/version-1.1.1-blue)](https://github.com/1261251607/lit-review-skill)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue)](https://github.com/1261251607/lit-review-skill)
 [![中文](https://img.shields.io/badge/README-中文-red)](README.zh-CN.md)
 
-End-to-end academic literature workflow for Claude Code: **topic decomposition →
-Google Scholar search → full-text extraction → Zotero organization**.
-Built for researchers who need broad coverage across SCI/Nature/Science/Cell
-and their sub-journals.
+End-to-end academic literature workflow for Claude Code: **mode selection → topic
+decomposition → Google Scholar search → full-text extraction → Zotero
+organization → synthesis report**. Two modes: **quick-catch** (~10-15 papers,
+rapid overview) and **deep-search** (~50-80 papers, comprehensive review with
+cross-dimension analysis and research outlook). Built for researchers who need
+broad coverage across SCI/Nature/Science/Cell and their sub-journals.
 
 ## Features
 
-- **6-phase automated workflow** — decompose, search, rank, fetch, organize, archive
+- **7-phase automated workflow** — mode select, decompose, search, rank, fetch, organize, synthesize
+- **Dual-mode** — quick-catch for rapid overview (~10-15 papers) or deep-search for comprehensive review (~50-80 papers)
+- **AI synthesis report** — cross-dimension analysis, methodology comparison, and research outlook stored as Zotero note
 - **Adaptive fallback chain** — OA → Edge WebSocket → Chrome CDP → HTTP → metadata, no hardcoded routes
 - **Multi-browser architecture** — Edge (anti-bot publishers) + Chrome (CDP) + Chrome (Scholar, cookie-blocked)
 - **Institutional access** — CARSI SAML federation, IP-based, and EZproxy support
@@ -82,14 +86,17 @@ In Claude Code, just describe what you need:
 帮我找空气取水超声解吸附方向的论文，要近三年的
 ```
 
-The skill will decompose the topic, search across dimensions, present results,
-fetch full text where possible, and add everything to Zotero (after asking
-which collection to use).
+The skill first asks **quick-catch** (rapid overview) or **deep-search**
+(comprehensive review), then decomposes the topic, searches across dimensions,
+presents results for user selection, fetches full text where possible, adds
+everything to Zotero, and generates a synthesis report with cross-dimension
+analysis stored as a Zotero note in the same collection.
 
 ## How It Works
 
 ```
-Topic → Google Scholar (port 9224) → candidates →
+Mode (quick-catch / deep-search)
+  → Topic → Google Scholar (port 9224) → candidates →
   User selects → paper-fetcher adaptive fallback:
     Layer 0: Open Access (Unpaywall/arXiv)
     Layer 1: Edge WebSocket (port 9225)
@@ -97,6 +104,7 @@ Topic → Google Scholar (port 9224) → candidates →
     Layer 3: HTTP direct / proxy
     Fallback: metadata only
   → translation-server → Zotero (complete metadata)
+  → AI synthesis → report stored as Zotero note
 ```
 
 **Adaptive fallback**: No hardcoded publisher routes. Each layer tries, succeeds

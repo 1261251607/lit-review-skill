@@ -1,13 +1,17 @@
 # lit-review — Claude Code 人工智能文献调研 Skill
 
-[![Version](https://img.shields.io/badge/version-1.1.1-blue)](https://github.com/1261251607/lit-review-skill)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue)](https://github.com/1261251607/lit-review-skill)
 
-面向研究人员的端到端学术文献工作流：**主题拆解 → Google Scholar 检索 →
-全文提取 → Zotero 组织管理**。覆盖 SCI / Nature / Science / Cell 及子刊。
+面向研究人员的端到端学术文献工作流：**模式选择 → 主题拆解 → Google Scholar
+检索 → 全文提取 → Zotero 组织管理 → 综合报告**。双模式：**quick-catch**
+（~10-15 篇，快速入门）和 **deep-search**（~50-80 篇，深度综述，含跨维度分析和
+研究前瞻）。覆盖 SCI / Nature / Science / Cell 及子刊。
 
 ## 特性
 
-- **6 阶段自动化流程** — 拆解、检索、排序、获取、整理、归档
+- **7 阶段自动化流程** — 选模、拆解、检索、排序、获取、整理、综合
+- **双模式** — quick-catch 快速入门（~10-15 篇）或 deep-search 深度综述（~50-80 篇）
+- **AI 综合报告** — 跨维度分析、方法论比较、研究前瞻，以 Zotero note 存入分类
 - **自适应 fallback 链** — OA → Edge WebSocket → Chrome CDP → HTTP → 元数据，无硬编码路由
 - **多浏览器架构** — Edge（反爬出版社）+ Chrome（CDP）+ Chrome（Scholar，Cookie 隔离）
 - **机构访问** — CARSI SAML 联邦认证、IP 直连、EZproxy
@@ -82,13 +86,15 @@ cd translation-server && npm start
 帮我找空气取水超声解吸附方向的论文，要近三年的
 ```
 
-Skill 会自动拆解主题、多维度检索、展示候选文献、获取全文，
-并在询问你希望放入哪个 Zotero 分类后完成入库。
+Skill 会先询问 **quick-catch**（快速了解）还是 **deep-search**（深度综述），
+然后拆解主题、多维度检索、展示候选文献供筛选、获取全文、完成 Zotero 入库，
+最终生成一份综合分析报告存入 Zotero 同一分类中。
 
 ## 工作流
 
 ```
-主题 → Google Scholar（端口 9224）→ 候选文献 →
+模式（quick-catch / deep-search）
+  → 主题 → Google Scholar（端口 9224）→ 候选文献 →
   用户选择 → paper-fetcher 自适应 fallback:
     第 0 层：开放获取（Unpaywall / arXiv）
     第 1 层：Edge WebSocket（端口 9225）
@@ -96,6 +102,7 @@ Skill 会自动拆解主题、多维度检索、展示候选文献、获取全�
     第 3 层：HTTP 直连 / 机构代理
     兜底：元数据
   → translation-server → Zotero（完整元数据）
+  → AI 综合报告 → 存入 Zotero note
 ```
 
 **自适应 fallback**：不预设出版社路由。每层尝试获取全文（> 1000 字符即成功），失败则进入下一层。Edge WebSocket 优先于 Chrome CDP，因为原生 DevTools 协议无自动化指纹——源自 `sciencedirect-live-session-fetcher`。
