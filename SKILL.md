@@ -58,9 +58,16 @@ Search Google Scholar via CDP browser on **port 9224** (Scholar Chrome with
 
 - Papers per dimension: 6-8 (quick-catch) / 10-15 (deep-search)
 - One broader "母主题" search: 8-10 (quick-catch) / 15-20 (deep-search)
-- English + Chinese keywords when the topic spans Chinese literature
 - If Google Scholar MCP is available, prefer it. Otherwise use CDP.
 - Domain rotation if blocked: `scholar.google.com` → `.com.pk` → `.com.pr`
+
+**Chinese literature (知网/万方)**:
+- Run a separate Chinese-only keyword search for each dimension (e.g. "植物工厂 热泵 温湿度").
+  Google Scholar already indexes CNKI/Wanfang abstracts — Chinese keywords surface domestic papers.
+- Chinese papers have usable abstracts in Scholar results. Include them in Phase 3 candidates.
+- Metadata: Zotero plugin `jasminum` auto-fills CNKI metadata when you drag a paper into Zotero.
+  For programmatic import, use paper-fetcher metadata or manual pyzotero construction.
+- Full text: CNKI is accessible via SJTU campus IP (not CARSI). Manual download in browser at `cnki.net`.
 
 ### Phase 3 — Deduplicate & Rank
 
