@@ -4,13 +4,50 @@
 
 End-to-end academic literature workflow: mode selection → topic decomposition → Google Scholar search →
 full-text extraction (OA / Edge DevTools → Chrome CDP → HTTP direct) → DOI verification →
-Zotero organization → synthesis report. Two modes: **quick-catch** (rapid overview, ~10-15 papers) and
-**deep-search** (comprehensive review, ~50-80 papers).
+Zotero organization → synthesis report → local output. Two modes: **quick-catch**
+(rapid overview, ~10-15 papers) and **deep-search** (comprehensive review, ~50-80 papers).
 
 ## When to trigger
 
 User says "帮我找文献 / 搜论文 / lit review / literature search / 文献调研" or asks
 to find papers on a specific topic.
+
+---
+
+## Configuration
+
+Before first use, set these environment variables (in `~/.claude/settings.json` under `env`,
+or as system environment variables). Only `ZOTERO_LIBRARY_ID` and `ZOTERO_API_KEY` are required.
+
+### Required
+
+| Variable | Example | Description |
+|----------|---------|-------------|
+| `ZOTERO_LIBRARY_ID` | `14349762` | Your Zotero user/group library ID |
+| `ZOTERO_API_KEY` | `abc123...` | Zotero API key with read/write permissions |
+
+### Optional
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ZOTERO_DATA_DIR` | auto-detect (`~/Zotero`) | Zotero data directory for SQLite reads |
+| `LIT_REVIEW_OUTPUT_DIR` | `~/lit-review-output` | Where full-text MD files and synthesis reports are saved. Set to your Obsidian vault path to browse papers in Obsidian (e.g. `D:/Notes/Papers base`) |
+| `LIT_REVIEW_TEMP_DIR` | `~/cc-massages` | Temporary scripts and intermediate files |
+| `LIT_REVIEW_CAS_CSV` | `~/.paper-fetcher/cas_partition/FQBJCR2025-UTF8.csv` | CAS journal ranking table |
+| `CARSI_INSTITUTION` | none | Your institution name for CARSI login prompts. If unset, prompts use generic wording |
+| `BROWSER_EDGE_PORT` | `9225` | Edge DevTools port for paywalled publisher access |
+| `BROWSER_CHROME_PORT` | `9223` | Chrome CDP fallback port |
+| `BROWSER_SCHOLAR_PORT` | `9224` | Chrome port for Google Scholar (cookie-isolated) |
+| `TRANSLATION_SERVER_PORT` | `1969` | Zotero translation-server port |
+
+### Obsidian integration
+
+If `LIT_REVIEW_OUTPUT_DIR` points inside an Obsidian vault, full-text papers and synthesis
+reports appear in Obsidian automatically. Example:
+```
+LIT_REVIEW_OUTPUT_DIR="D:/Notes/Schoalr_mindstorm/Papers base"
+```
+If unset, output goes to `~/lit-review-output/` — works fine without Obsidian.
 
 ---
 
@@ -53,7 +90,7 @@ Present dimensions to the user, then search.
 
 ### Phase 2 — Search
 
-Search Google Scholar via CDP browser on **port 9224** (Scholar Chrome with
+Search Google Scholar via CDP browser on **`$BROWSER_SCHOLAR_PORT`** (Scholar Chrome with
 `--block-third-party-cookies` to prevent Google's tracking-based rate limiting).
 
 - Papers per dimension: 6-8 (quick-catch) / 10-15 (deep-search)
@@ -67,7 +104,7 @@ Search Google Scholar via CDP browser on **port 9224** (Scholar Chrome with
 - Chinese papers have usable abstracts in Scholar results. Include them in Phase 3 candidates.
 - Metadata: Zotero plugin `jasminum` auto-fills CNKI metadata when you drag a paper into Zotero.
   For programmatic import, use paper-fetcher metadata or manual pyzotero construction.
-- Full text: CNKI is accessible via SJTU campus IP (not CARSI). Manual download in browser at `cnki.net`.
+- Full text: CNKI is accessible via institutional IP (not CARSI). Manual download in browser at `cnki.net`.
 
 ### Phase 3 — Deduplicate & Rank
 
@@ -93,9 +130,9 @@ When marking a paper as foundational, add a short justification:
 
 **CAS journal ranking** — for each paper, look up the journal's CAS partition using the local table:
 ```bash
-python3 ~/cc-massages/cas_lookup.py "<journal_name>"
+python3 $LIT_REVIEW_TEMP_DIR/cas_lookup.py "<journal_name>"
 ```
-Data source: `~/cc-massages/cas_partition/FQBJCR2025-UTF8.csv` (21,773 journals, from `hitfyd/ShowJCR`).
+Data source: `$LIT_REVIEW_CAS_CSV` (21,773 journals, from `hitfyd/ShowJCR`).
 Add a CAS column to the candidate table: e.g. "工程技术 1区 (Top)". If not found, leave blank.
 
 Present a structured table:
@@ -149,25 +186,30 @@ paper-fetcher uses an adaptive fallback chain — tries each layer, stops when i
 > 1000 chars of full text:
 
 ```
-Layer 0: Open Access (Unpaywall / arXiv)         ← free, no auth, always first
-Layer 1: Edge WebSocket DevTools (port 9225)      ← all paywalled publishers
-Layer 2: Chrome CDP (port 9223)                   ← fallback if Edge fails
-Layer 3: HTTP direct / institutional proxy        ← Nature, Springer, IOP, RSC
-Fallback: metadata only                           ← always available
+Layer 0: Open Access (Unpaywall / arXiv)              ← free, no auth, always first
+Layer 1: Edge WebSocket DevTools ($BROWSER_EDGE_PORT) ← all paywalled publishers
+Layer 2: Chrome CDP ($BROWSER_CHROME_PORT)            ← fallback if Edge fails
+Layer 3: HTTP direct / institutional proxy            ← Nature, Springer, IOP, RSC
+Fallback: metadata only                               ← always available
 ```
 
 **Publisher routing**: All CARSI-authenticated publishers (ACS, Wiley, Cell, Science, Nature, SD,
-Springer, RSC) should be accessed via **Edge port 9225**. Chrome CDP (9223) is a fallback only.
-Scholar Chrome (9224) is used exclusively for Google Scholar searches, never for publisher access.
+Springer, RSC) should be accessed via **Edge `$BROWSER_EDGE_PORT`**. Chrome CDP (`$BROWSER_CHROME_PORT`)
+is a fallback only. Scholar Chrome (`$BROWSER_SCHOLAR_PORT`) is for Google Scholar only.
 
-Save full text as Markdown under a task-specific subdirectory:
-`~/.paper-fetcher/papers/{task-slug}/—.md`
+Save full text as Markdown under the output directory:
+`$LIT_REVIEW_OUTPUT_DIR/{task-slug}/{paper-title}.md`
+
+- Directory: `$LIT_REVIEW_OUTPUT_DIR/{task-slug}/` (create if needed)
+- Filename: the paper title, sanitized (strip illegal chars `\ / : * ? " < > |`, trim to reasonable length)
+- Content: whatever full text / metadata was retrieved from the web, as Markdown
+- If `$LIT_REVIEW_OUTPUT_DIR` is inside an Obsidian vault, papers appear in Obsidian immediately
 
 Report progress during fetching:
 ```
 获取全文 [deep-search, 目标 ~18 篇]:
   #1 ✓ "Title" — 97,185 chars (open_access)
-  #3 ✓ "Title" — 338,813 chars (sjtu_edge)
+  #3 ✓ "Title" — 338,813 chars (edge)
   #5 ✗ "Title" — metadata only (paywall, CARSI login needed)
   ... (N remaining)
 ```
@@ -191,9 +233,9 @@ mcp__zotero__add url="https://doi.org/10.xxx/xxx"
 
 **Fallback method** — translation-server + pyzotero for batch imports:
 
-**Step A — Resolve metadata via translation-server (port 1969):**
+**Step A — Resolve metadata via translation-server (`$TRANSLATION_SERVER_PORT`):**
 ```bash
-curl -s http://localhost:1969/web -X POST \
+curl -s http://localhost:$TRANSLATION_SERVER_PORT/web -X POST \
   -H "Content-Type: application/json" \
   -d '{"url":"https://doi.org/DOI","session":"lit-review"}'
 ```
@@ -201,7 +243,12 @@ curl -s http://localhost:1969/web -X POST \
 **Step B — Create items with pyzotero:**
 ```python
 from pyzotero import zotero
-zot = zotero.Zotero('14349762', 'user', 'KEY')
+import os
+zot = zotero.Zotero(
+    os.environ['ZOTERO_LIBRARY_ID'],
+    'user',
+    os.environ['ZOTERO_API_KEY']
+)
 template['collections'] = [COLLECTION_KEY]
 zot.create_items([template])
 ```
@@ -232,7 +279,7 @@ full text was unavailable. The information hierarchy is:
 | Tier 2 | Abstract + highlights + figures | Core findings, key data, main conclusions, statistical trends |
 | Tier 3 | Metadata only (title + journal + year) | Existence proof, publication venue context, timeline analysis |
 
-- **Full-text MDs** under `~/.paper-fetcher/papers/{task-slug}/` are the primary source.
+- **Full-text MDs** under `$LIT_REVIEW_OUTPUT_DIR/{task-slug}/` are the primary source.
 - **Abstracts and metadata** from Phase 3 Scholar results supplement gaps and broaden coverage.
 - In the report, cite each paper with its tier: `[n]` = full text, `[n]*` = abstract, `[n]†` = metadata.
 - A deep-search report with 42 candidates should engage with all 42 — not just the ~20 with full text.
@@ -267,15 +314,19 @@ Read top 2-3 per dimension + global top 5 (~15-20 full-text MDs). Structure in f
 
 **Key constraint**: 每个判断都要有文献支撑。基于全文优于摘要，摘要优于元数据。不要因为某篇只有摘要就放弃引用。
 
-#### Store report in Zotero
+#### Store the report
 
-After generating the report, create a standalone note item in the target Zotero collection
-containing the **complete, unabridged** synthesis report (all four layers for deep-search,
-all sections for quick-catch). Do NOT store a simplified or abbreviated version.
+Save the synthesis report in two places:
 
+**1. Zotero** — as a standalone note item in the target collection:
 ```python
 from pyzotero import zotero
-zot = zotero.Zotero('14349762', 'user', 'KEY')
+import os
+zot = zotero.Zotero(
+    os.environ['ZOTERO_LIBRARY_ID'],
+    'user',
+    os.environ['ZOTERO_API_KEY']
+)
 
 note = {
     'itemType': 'note',
@@ -284,8 +335,15 @@ note = {
 }
 zot.create_items([note])
 ```
-
 The note appears alongside the papers in the same collection in Zotero.
+
+**2. Output directory** — as a Markdown file:
+`$LIT_REVIEW_OUTPUT_DIR/{task-slug}/_综述_{topic}.md`
+
+Use the `_` prefix so the report sorts before individual papers in the file listing.
+Write the report in clean Markdown — use headers, bullet lists, and `[n]` citation markers
+as in the report body. If `$LIT_REVIEW_OUTPUT_DIR` is inside an Obsidian vault, the report
+is browsable in Obsidian alongside the papers it references.
 
 ---
 
@@ -297,21 +355,25 @@ Start all four services:
 
 | Service | Port | Command | Purpose |
 |---------|------|---------|---------|
-| Edge (primary publisher access) | 9225 | `start_edge.ps1` | All CARSI-authenticated publishers |
-| Chrome CDP (publisher fallback) | 9223 | `start_chrome.ps1` | Fallback for publishers Edge can't handle |
-| Scholar Chrome | 9224 | `start_chrome.ps1 -Scholar` | Google Scholar only (cookie-blocked) |
-| Translation | 1969 | `cd translation-server && npm start` | Zotero metadata resolution |
+| Edge (primary publisher access) | `$BROWSER_EDGE_PORT` | `start_edge.ps1` | All CARSI-authenticated publishers |
+| Chrome CDP (publisher fallback) | `$BROWSER_CHROME_PORT` | `start_chrome.ps1` | Fallback for publishers Edge can't handle |
+| Scholar Chrome | `$BROWSER_SCHOLAR_PORT` | `start_chrome.ps1 -Scholar` | Google Scholar only (cookie-blocked) |
+| Translation | `$TRANSLATION_SERVER_PORT` | `cd translation-server && npm start` | Zotero metadata resolution |
+
+The bundled scripts `start_chrome.ps1` and `start_edge.ps1` accept `-Port` to override
+the default. Match the port numbers to your configured env vars.
 
 ### CARSI login flow
 
 1. Start all browser services. Browsers should open **minimized** — do not bring to front
    during automated fetching.
 2. **Immediately remind the user:**
-   > "请在 **Edge (9225)** 中打开以下出版社网站，走 SJTU CARSI 登录：
+   > "请在 **Edge (`$BROWSER_EDGE_PORT`)** 中打开以下出版社网站，走 `$CARSI_INSTITUTION` CARSI 登录：
    > `sciencedirect.com` `onlinelibrary.wiley.com` `nature.com`
    > `pubs.acs.org` `cell.com` `link.springer.com` `pubs.rsc.org`
    >
    > 完成后告诉我。"
+   (If `$CARSI_INSTITUTION` is unset, replace with "your institution".)
 3. **STOP. Wait for the user to confirm login is done.** Do not search, fetch, or scrape
    until the user signals completion.
 4. Only after user confirmation, proceed with paywalled paper fetching.
@@ -327,8 +389,8 @@ stopping when it gets usable full text (> 1000 chars):
 
 ```
 Layer 0 — OA: Unpaywall / arXiv (free, no auth, always first)
-Layer 1 — Edge WebSocket: port 9225, raw DevTools protocol (zero automation fingerprint, all paywalled publishers)
-Layer 2 — Chrome CDP: port 9223, DrissionPage (fallback for publishers Edge fails on)
+Layer 1 — Edge WebSocket: $BROWSER_EDGE_PORT, raw DevTools protocol (zero automation fingerprint)
+Layer 2 — Chrome CDP: $BROWSER_CHROME_PORT, DrissionPage (fallback for publishers Edge fails on)
 Layer 3 — HTTP direct: institutional IP / proxy (for IP-authenticated publishers)
 Fallback — metadata only (always available via Semantic Scholar / Crossref)
 ```
@@ -340,25 +402,21 @@ has no automation markers — learned from `sciencedirect-live-session-fetcher`.
 
 ## File Organization
 
-- Full-text MDs: `~/.paper-fetcher/papers/{task-slug}/` (one subdirectory per task)
-- Batch import scripts: `~/cc-massages/batch_import_{task-slug}.py` (clean up after use)
-- CAS partition table: `~/.paper-fetcher/cas_partition/FQBJCR2025-UTF8.csv`
+- Full-text MDs: `$LIT_REVIEW_OUTPUT_DIR/{task-slug}/` (one subdirectory per task)
+- Synthesis reports: `$LIT_REVIEW_OUTPUT_DIR/{task-slug}/_综述_{topic}.md`
+- Batch import scripts: `$LIT_REVIEW_TEMP_DIR/batch_import_{task-slug}.py` (clean up after use)
+- CAS partition table: `$LIT_REVIEW_CAS_CSV`
 - CAS lookup script: `cas_lookup.py` (bundled with this skill)
 
 ### CAS Partition Setup (for new users)
 
-The CAS journal ranking system is used in Phase 3 to annotate candidate papers.
-One-time setup:
-
 ```bash
-# 1. Download the latest CAS partition table (source: hitfyd/ShowJCR)
-mkdir -p ~/.paper-fetcher/cas_partition
+# Download the latest CAS partition table (source: hitfyd/ShowJCR)
+CAS_DIR=$(dirname "$LIT_REVIEW_CAS_CSV")
+mkdir -p "$CAS_DIR"
 URL="https://raw.githubusercontent.com/hitfyd/ShowJCR/refs/heads/master/"
 URL="${URL}中科院分区表及JCR原始数据文件/FQBJCR2025-UTF8.csv"
-curl -L -o ~/.paper-fetcher/cas_partition/FQBJCR2025-UTF8.csv "$URL"
-
-# 2. The bundled cas_lookup.py reads from this path by default.
-#    Override with env var: CAS_PARTITION_CSV=/custom/path.csv
+curl -L -o "$LIT_REVIEW_CAS_CSV" "$URL"
 ```
 
 If the CSV is not present, CAS lookups are silently skipped — the skill works fine without it.
@@ -367,8 +425,9 @@ If the CSV is not present, CAS lookups are silently skipped — the skill works 
 
 ## Zotero Config
 
-- Data dir: `C:/Users/Scholar/Zotero`
-- Library ID: 14349762
+- Data dir: `$ZOTERO_DATA_DIR` (auto-detected, falls back to `~/Zotero`)
+- Library ID: `$ZOTERO_LIBRARY_ID` (required)
+- API key: `$ZOTERO_API_KEY` (required, create at https://www.zotero.org/settings/keys)
 - Read: SQLite direct (offline, millisecond)
 - Write: Web API with pyzotero or MCP `zot add`
 
@@ -380,12 +439,13 @@ If the CSV is not present, CAS lookups are silently skipped — the skill works 
 - **Never skip paywalled papers**: Attempt every paper. Start browsers, pause for login, try every layer.
 - **Login comes before fetching, and wait for the user**: Start browsers → remind → STOP → wait for "done" → then fetch.
 - **Browsers run minimized** during automated fetching. Only bring to front for user interaction.
-- **All publisher CARSI login via Edge (9225)**. Chrome CDP (9223) is fallback only. Scholar Chrome (9224) is for Google Scholar only.
+- **All publisher CARSI login via Edge (`$BROWSER_EDGE_PORT`)**. Chrome CDP (`$BROWSER_CHROME_PORT`) is fallback only. Scholar Chrome (`$BROWSER_SCHOLAR_PORT`) is for Google Scholar only.
 - **Synthesis is not optional**: Phase 7 is mandatory for both modes. Don't skip it.
 - **Read full text, not abstracts**: Phase 7 analysis must be based on full-text MD files in the task subdirectory.
-- **Complete report in Zotero**: Store the full unabridged synthesis report, not a summary.
+- **Complete report in Zotero AND output directory**: Store the full unabridged synthesis report in both places.
 - **Always consult** before Zotero writes — never auto-add without collection confirmation.
 - **Don't get stuck**: if full text fails after exhausting all layers, save metadata and flag it.
 - **Translation-server must be running** before Phase 6.
 - **Import all papers, not just full-text ones**: Phase 6 imports every selected paper. Metadata-only items are valid Zotero entries.
 - **Use all information tiers in synthesis**: Full text > abstract > metadata. Don't discard papers without full text — their abstracts still carry findings.
+- **All paths configurable via env vars**: No hardcoded user-specific paths. Defaults work out of the box.
